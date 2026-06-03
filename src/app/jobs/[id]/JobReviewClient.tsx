@@ -53,7 +53,8 @@ export default function JobReviewClient({ job }: { job: any }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          jobDescription: job.description,
+          jobTitle: job.title,
+          companyName: job.company,
           baseResume: baseResumeText,
           baseCoverLetter: baseCoverLetterText
         })

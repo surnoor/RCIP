@@ -1,87 +1,42 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function replacePlaceholders(text: string, title: string, company: string): string {
+  if (!text) return '';
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return text
+    .replace(/\[JOB_TITLE\]/gi, title || 'the open position')
+    .replace(/\[COMPANY_NAME\]/gi, company || 'your company')
+    .replace(/\[DATE\]/gi, dateStr);
+}
 
 export async function POST(req: Request) {
   try {
-    const { jobDescription, baseResume, baseCoverLetter } = await req.json();
+    const { jobTitle, companyName, baseResume, baseCoverLetter } = await req.json();
 
-    if (!jobDescription || !baseResume) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!baseResume) {
+      return NextResponse.json({ error: 'Missing base resume content' }, { status: 400 });
     }
 
-    const resumePrompt = `
-You are an expert executive recruiter and ATS (Applicant Tracking System) optimization specialist.
-I will provide you with a Job Description and my Base Resume. 
-Your task is to tailor my Base Resume to strictly match the Job Description, optimizing it to pass through ATS filters while retaining 100% of my factual employment history.
+    // Process templates
+    const tailoredResume = replacePlaceholders(baseResume, jobTitle, companyName);
+    const tailoredCoverLetter = replacePlaceholders(baseCoverLetter || '', jobTitle, companyName);
 
-CRITICAL RULES YOU MUST FOLLOW EXACTLY:
-1. YOU MUST NOT REMOVE OR CHANGE any Employer Names.
-2. YOU MUST NOT REMOVE OR CHANGE any Locations of employment.
-3. YOU MUST NOT REMOVE OR CHANGE any Positions/Titles I held.
-4. YOU MUST NOT REMOVE OR CHANGE any Dates (Months and Years) of my employment.
-5. You may ONLY change, optimize, re-order, and inject keywords into the bullet points and descriptions of what I did at those jobs, to perfectly align with the employer's needs in the Job Description.
-6. Do not hallucinate skills, degrees, or experience that are not implied by or directly stated in the Base Resume.
+    // Generate standard email body
+    const emailBody = `Dear Hiring Manager,
 
-Job Description:
-${jobDescription}
+Please find attached my resume and cover letter for the ${jobTitle || 'open'} position at ${companyName || 'your company'}. 
 
-Base Resume:
-${baseResume}
+I am very interested in this opportunity and believe my administrative background aligns perfectly with your needs. I look forward to the possibility of discussing this role further.
 
-CRITICAL: Output the tailored resume in strictly plain text formatting. DO NOT use any markdown tags, asterisks (*), hash symbols (#), bold tags, or any AI-like formatting. Format lists with simple dashes (-) or plain numbers (1. 2.). The output must look like a clean, professional plain text document.
-`;
+Best regards,
+Surnoor Singh`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: resumePrompt,
-    });
-
-    const tailoredResume = response.text || '';
-
-    let tailoredCoverLetter = '';
-    if (baseCoverLetter) {
-       const clPrompt = `
-You are an expert cover letter writer.
-Based on the following Job Description and my Base Cover Letter, write a tailored cover letter.
-Match the tone, address the specific needs of the job, and emphasize my administrative capabilities.
-
-Job Description:
-${jobDescription}
-
-Base Cover Letter:
-${baseCoverLetter}
-
-CRITICAL: Output the tailored cover letter in strictly plain text formatting suitable for an email attachment. DO NOT use any markdown tags, asterisks (*), hash symbols (#), bold tags, or any AI-like formatting. The output must look like a clean, professional plain text business letter.
-`;
-      const clResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: clPrompt,
-      });
-      tailoredCoverLetter = clResponse.text || '';
-    }
-
-    const emailBodyPrompt = `
-You are an expert professional applicant.
-Based on the following Job Description, write a short, professional email body (3-5 sentences) introducing myself and stating that my resume and cover letter are attached.
-Do not include subject line or placeholder blocks like [Your Name], just write the pure body.
-
-Job Description:
-${jobDescription}
-
-CRITICAL: Output strictly plain text. NO markdown, NO asterisks. Keep it concise.
-`;
-
-    const emailBodyResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: emailBodyPrompt,
-    });
-    const emailBody = emailBodyResponse.text || '';
+    // Add a slight fake delay so the UI still feels like it's "doing work" (optional but good for UX)
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     return NextResponse.json({ tailoredResume, tailoredCoverLetter, emailBody });
   } catch (error: any) {
-    console.error('AI Generation Error:', error);
+    console.error('Template Generation Error:', error);
     return NextResponse.json({ error: error.message || 'Failed to generate documents' }, { status: 500 });
   }
 }
