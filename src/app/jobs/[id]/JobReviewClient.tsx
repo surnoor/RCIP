@@ -23,6 +23,7 @@ export default function JobReviewClient({ job }: { job: any }) {
   
   const [loading, setLoading] = useState(false)
   const [dispatching, setDispatching] = useState(false)
+  const [previewing, setPreviewing] = useState<string | null>(null)
   const [status, setStatus] = useState("")
 
   // Dialog State
@@ -124,6 +125,27 @@ export default function JobReviewClient({ job }: { job: any }) {
     }
   }
 
+  const handlePreview = async (content: string, type: string) => {
+    setPreviewing(type)
+    try {
+      const res = await fetch("/api/pdf-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content })
+      })
+      if (!res.ok) throw new Error("Failed to generate preview")
+      
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+    } catch (e) {
+      console.error(e)
+      alert("Error generating PDF preview. Check console.")
+    } finally {
+      setPreviewing(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       
@@ -182,9 +204,24 @@ export default function JobReviewClient({ job }: { job: any }) {
                 placeholder="Write your email body here..."
               />
             </div>
-            <p className="text-xs text-slate-400">
-              * Resume.pdf and CoverLetter.pdf will be generated and attached automatically.
-            </p>
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
+              <span className="text-sm text-slate-300 font-medium">Attachments Preview</span>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="secondary" size="sm" onClick={() => handlePreview(resume, 'resume')} disabled={previewing === 'resume'} className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+                  {previewing === 'resume' ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileText className="w-3 h-3 mr-2 text-emerald-400" />}
+                  Preview Resume.pdf
+                </Button>
+                {coverLetter && (
+                  <Button variant="secondary" size="sm" onClick={() => handlePreview(coverLetter, 'coverLetter')} disabled={previewing === 'coverLetter'} className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+                    {previewing === 'coverLetter' ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileText className="w-3 h-3 mr-2 text-indigo-400" />}
+                    Preview CoverLetter.pdf
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                * These PDFs will be generated exactly as previewed and attached automatically.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-slate-700 text-slate-300 hover:bg-slate-800">
