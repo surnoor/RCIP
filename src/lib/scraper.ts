@@ -63,13 +63,13 @@ export async function scrapeWorkBC() {
   const allJobsMap = new Map<string, any>();
 
   for (const keyword of KEYWORDS) {
-    console.log(`Searching for keyword: "${keyword}"...`);
+    console.log(`Searching for keyword: "${keyword} full time"...`);
     const payload = {
       Page: 1,
       PageSize: 100,
       SalaryMin: "",
       SalaryMax: "",
-      Keyword: keyword,
+      Keyword: `${keyword} full time`,
       SearchInField: "all",
       SearchIsPostingsInEnglish: true,
       SearchJobSource: "0"
@@ -232,8 +232,9 @@ export async function triggerApifyScrapers() {
   if (ACTIVE_SOURCES.includes('indeed') && searchQueries.length > 0) {
     console.log("Triggering Apify Indeed Scraper...");
     try {
+      // Appending "full time" to ensure Indeed filters properly
       await client.actor('borderline/indeed-scraper').start({
-        position: config.keywords.join(', '),
+        position: config.keywords.map(k => `${k} full time`).join(', '),
         location: config.cities.join(' BC, '),
         maxItems: 50,
         sort: "date",
@@ -259,6 +260,7 @@ export async function triggerApifyScrapers() {
         queries: config.keywords,
         locations: config.cities.map(c => `${c}, British Columbia, Canada`),
         postedLimit: "past-week",
+        employmentType: ["Full-time"],
         maxItemsPerQuery: 50
       }, {
         webhooks: [{
