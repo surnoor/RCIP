@@ -251,15 +251,15 @@ export async function triggerApifyScrapers() {
     }
   }
 
-  // 2. LinkedIn Scraper (bebity/linkedin-jobs-scraper)
-  if (ACTIVE_SOURCES.includes('linkedin') && searchQueries.length > 0) {
-    console.log("Triggering Apify LinkedIn Scraper...");
+  // 2. LinkedIn Scraper (harvestapi/linkedin-job-search)
+  if (ACTIVE_SOURCES.includes('linkedin') && config.keywords.length > 0) {
+    console.log("Triggering Apify LinkedIn Scraper (HarvestAPI)...");
     try {
-      // Bebity linkedin scraper takes an array of search queries
-      await client.actor('bebity/linkedin-jobs-scraper').start({
-        searchUrls: searchQueries.map(q => ({ url: `https://ca.linkedin.com/jobs/search?keywords=${encodeURIComponent(q)}` })),
-        limit: 50,
-        publishedAt: "past-week"
+      await client.actor('harvestapi/linkedin-job-search').start({
+        queries: config.keywords,
+        locations: config.cities.map(c => `${c}, British Columbia, Canada`),
+        postedLimit: "past-week",
+        maxItemsPerQuery: 50
       }, {
         webhooks: [{
           eventTypes: ["ACTOR.RUN.SUCCEEDED"],
