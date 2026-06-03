@@ -20,7 +20,8 @@ export default async function Dashboard() {
   // Categorize jobs
   const emailJobs = jobs?.filter(j => j.status === 'new') || [];
   const webFormJobs = jobs?.filter(j => j.status === 'web_form') || [];
-  const successfullyApplied = jobs?.filter(j => j.status === 'applied').length || 0;
+  const appliedJobs = jobs?.filter(j => j.status === 'applied') || [];
+  const successfullyApplied = appliedJobs.length;
   
   const emailJobIds = emailJobs.map(j => j.id);
 
@@ -168,6 +169,51 @@ export default async function Dashboard() {
                         <TableRow>
                           <TableCell colSpan={2} className="text-center py-8 text-slate-500">
                             Queue is empty.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Applied Applications Queue */}
+          <div className="pt-8">
+            <Card className="bg-slate-900/60 border-slate-800 shadow-2xl backdrop-blur-xl opacity-80 hover:opacity-100 transition-opacity">
+              <CardHeader>
+                <CardTitle className="text-emerald-400">Completed Applications</CardTitle>
+                <CardDescription className="text-slate-400 mt-1">Review and re-send your successfully applied jobs.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  <Table>
+                    <TableHeader className="border-slate-800 sticky top-0 bg-slate-900/90 backdrop-blur-md z-10">
+                      <TableRow className="hover:bg-transparent border-slate-800">
+                        <TableHead className="text-slate-400">Role & Company</TableHead>
+                        <TableHead className="text-slate-400">Location</TableHead>
+                        <TableHead className="text-slate-400 text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {appliedJobs.length > 0 ? appliedJobs.map((job) => (
+                        <TableRow key={job.id} className="border-slate-800 hover:bg-slate-800/50 transition-colors">
+                          <TableCell className="py-3">
+                            <div className="font-medium text-slate-200">{job.title}</div>
+                            <div className="text-xs text-slate-500 mt-1">{job.company}</div>
+                          </TableCell>
+                          <TableCell className="text-slate-400 text-sm">{job.location}</TableCell>
+                          <TableCell className="text-right">
+                            <Link href={`/jobs/${job.id}`} className="text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+                              Review Again
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-slate-500">
+                            No applied jobs yet.
                           </TableCell>
                         </TableRow>
                       )}
