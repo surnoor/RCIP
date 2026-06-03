@@ -1,0 +1,23 @@
+[
+  {
+    "id": "general_admin",
+    "name": "General Admin Assistant",
+    "keywords": ["office", "administrative", "clerk", "data entry", "executive assistant", "typing", "filing", "scheduling", "reception"],
+    "resume": "SURNOOR SINGH\n123 Main St, Vancouver, BC | (555) 123-4567 | surnoor@example.com\n\nOBJECTIVE\nHighly organized administrative professional seeking the [JOB_TITLE] position at [COMPANY_NAME].\n\nEXPERIENCE\nAdministrative Assistant | Office Corp | Jan 2020 - Present\n- Managed multi-line phone systems and directed inquiries.\n- Processed data entry with 99% accuracy.\n- Coordinated scheduling for 5 executives.\n\nEDUCATION\nBachelor of Arts | University of British Columbia | 2019",
+    "coverLetter": "Dear Hiring Manager at [COMPANY_NAME],\n\nI am writing to express my strong interest in the [JOB_TITLE] position. With over 4 years of experience managing fast-paced office environments, I am highly skilled in data entry, scheduling, and providing exceptional administrative support.\n\nI would welcome the opportunity to discuss how my organizational skills can benefit your team. Thank you for your time and consideration.\n\nSincerely,\nSurnoor Singh"
+  },
+  {
+    "id": "hotel_admin",
+    "name": "Hospitality / Hotel Admin",
+    "keywords": ["hotel", "hospitality", "guest", "concierge", "resort", "front desk", "booking", "reservation", "tourism", "night auditor"],
+    "resume": "SURNOOR SINGH\n123 Main St, Vancouver, BC | (555) 123-4567 | surnoor@example.com\n\nOBJECTIVE\nDedicated hospitality professional seeking the [JOB_TITLE] role at [COMPANY_NAME] to deliver exceptional guest experiences.\n\nEXPERIENCE\nFront Desk Concierge | Grand Resort | Feb 2021 - Present\n- Welcomed and checked in over 100 guests daily, ensuring 5-star service.\n- Managed high-volume reservations using Opera PMS.\n- Resolved guest complaints swiftly, maintaining a 98% satisfaction score.\n\nEDUCATION\nBachelor of Arts | University of British Columbia | 2019",
+    "coverLetter": "Dear Hiring Manager at [COMPANY_NAME],\n\nI am writing to enthusiastically apply for the [JOB_TITLE] position. Having spent years at the front desk of a busy resort, I excel at turning first impressions into lasting guest relationships. I am deeply familiar with reservation software and the unique demands of the hospitality industry.\n\nI would love to bring my dedication to guest satisfaction to [COMPANY_NAME]. Thank you for your consideration.\n\nSincerely,\nSurnoor Singh"
+  },
+  {
+    "id": "medical_admin",
+    "name": "Medical Receptionist",
+    "keywords": ["medical", "clinic", "health", "patient", "hospital", "dental", "reception", "moa", "triage", "physician"],
+    "resume": "SURNOOR SINGH\n123 Main St, Vancouver, BC | (555) 123-4567 | surnoor@example.com\n\nOBJECTIVE\nCompassionate medical office assistant seeking the [JOB_TITLE] position at [COMPANY_NAME] to support patient care and clinic efficiency.\n\nEXPERIENCE\nMedical Receptionist | City Health Clinic | Mar 2020 - Present\n- Scheduled patient appointments and managed electronic health records (EHR).\n- Handled sensitive patient information in strict compliance with privacy laws.\n- Coordinated referrals and verified insurance billing.\n\nEDUCATION\nMedical Office Assistant Diploma | BC College | 2020",
+    "coverLetter": "Dear Hiring Manager at [COMPANY_NAME],\n\nI am submitting my resume for the [JOB_TITLE] position. As an experienced Medical Receptionist, I understand the critical importance of patient privacy, accurate EHR management, and maintaining a calm, welcoming environment in a clinical setting.\n\nI am eager to contribute my skills to your healthcare team. Thank you for your time.\n\nSincerely,\nSurnoor Singh"
+  }
+]

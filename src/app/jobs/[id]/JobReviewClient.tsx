@@ -25,6 +25,7 @@ export default function JobReviewClient({ job }: { job: any }) {
   const [dispatching, setDispatching] = useState(false)
   const [previewing, setPreviewing] = useState<string | null>(null)
   const [status, setStatus] = useState("")
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
 
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -55,8 +56,7 @@ export default function JobReviewClient({ job }: { job: any }) {
         body: JSON.stringify({
           jobTitle: job.title,
           companyName: job.company,
-          baseResume: baseResumeText,
-          baseCoverLetter: baseCoverLetterText
+          jobDescription: job.description
         })
       })
       
@@ -66,11 +66,13 @@ export default function JobReviewClient({ job }: { job: any }) {
         throw new Error(data.error || "Failed to generate documents");
       }
       
+      
       if (data.tailoredResume) setResume(data.tailoredResume)
       if (data.tailoredCoverLetter) setCoverLetter(data.tailoredCoverLetter)
       if (data.emailBody) setEmailBody(data.emailBody)
+      if (data.selectedProfileName) setSelectedProfile(data.selectedProfileName)
       
-      setStatus("Documents generated successfully!")
+      setStatus(`Generated successfully using: ${data.selectedProfileName || 'Base Profile'}`)
       
       // Optionally save to applications table here
       await supabase.from('applications').insert({
@@ -243,9 +245,16 @@ export default function JobReviewClient({ job }: { job: any }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-400" />
-              Tailored Cover Letter
+            <CardTitle className="text-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-400" />
+                Tailored Cover Letter
+              </div>
+              {selectedProfile && (
+                <span className="text-xs font-normal px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/30">
+                  {selectedProfile}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -257,9 +266,16 @@ export default function JobReviewClient({ job }: { job: any }) {
 
         <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="w-5 h-5 text-emerald-400" />
-              Tailored Resume
+            <CardTitle className="text-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-400" />
+                Tailored Resume
+              </div>
+              {selectedProfile && (
+                <span className="text-xs font-normal px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30">
+                  {selectedProfile}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
