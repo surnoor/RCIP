@@ -234,12 +234,12 @@ export async function triggerApifyScrapers() {
   }
 
   let triggered = 0;
+  const errors: string[] = [];
 
   // 1. Indeed Scraper (borderline/indeed-scraper)
   if (ACTIVE_SOURCES.includes('indeed') && searchQueries.length > 0) {
     console.log("Triggering Apify Indeed Scraper...");
     try {
-      // Appending "full time" to ensure Indeed filters properly
       await client.actor('borderline/indeed-scraper').start({
         position: config.keywords.map(k => `${k} full time`).join(', '),
         location: config.cities.join(' BC, '),
@@ -254,8 +254,9 @@ export async function triggerApifyScrapers() {
         }]
       });
       triggered++;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to trigger Indeed scraper:", e);
+      errors.push(`Indeed: ${e.message || 'Unknown error'} ${e.data?.approvalUrl ? `(Approve here: ${e.data.approvalUrl})` : ''}`);
     }
   }
 
@@ -277,14 +278,15 @@ export async function triggerApifyScrapers() {
         }]
       });
       triggered++;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to trigger LinkedIn scraper:", e);
+      errors.push(`LinkedIn: ${e.message || 'Unknown error'} ${e.data?.approvalUrl ? `(Approve here: ${e.data.approvalUrl})` : ''}`);
     }
   }
 
   if (triggered > 0) {
     return { success: true, message: `Started ${triggered} Apify runs. Webhook: ${webhookUrl}` };
   } else {
-    return { success: true, message: "No active Apify sources to trigger." };
+    return { success: false, message: `Apify triggers failed. Errors: ${errors.join(' | ')}` };
   }
 }
