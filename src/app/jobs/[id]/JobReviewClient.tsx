@@ -60,6 +60,11 @@ export default function JobReviewClient({ job }: { job: any }) {
       })
       
       const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate documents");
+      }
+      
       if (data.tailoredResume) setResume(data.tailoredResume)
       if (data.tailoredCoverLetter) setCoverLetter(data.tailoredCoverLetter)
       if (data.emailBody) setEmailBody(data.emailBody)
@@ -74,9 +79,9 @@ export default function JobReviewClient({ job }: { job: any }) {
         status: 'pending_review'
       })
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      setStatus("Error generating documents.")
+      setStatus(`Error: ${e.message || "Failed to generate documents."}`)
     } finally {
       setLoading(false)
     }

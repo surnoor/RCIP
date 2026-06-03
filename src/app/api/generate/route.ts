@@ -80,8 +80,8 @@ CRITICAL: Output strictly plain text. NO markdown, NO asterisks. Keep it concise
     const emailBody = emailBodyResponse.text || '';
 
     return NextResponse.json({ tailoredResume, tailoredCoverLetter, emailBody });
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI Generation Error:', error);
-    return NextResponse.json({ error: 'Failed to generate documents' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to generate documents' }, { status: 500 });
   }
 }

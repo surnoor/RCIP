@@ -9,7 +9,8 @@
     "receptionist",
     "front desk",
     "data entry clerk",
-    "office coordinator"
+    "office coordinator",
+    "hotel"
   ],
   "cities": [
     "vernon",
@@ -61,5 +62,5 @@
     }
   ],
   "apifyEnabled": true,
-  "apifyMaxItems": 50
+  "apifyMaxItems": 10
 }
