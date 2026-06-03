@@ -59,5 +59,7 @@
       "url": "https://ca.linkedin.com",
       "active": true
     }
-  ]
+  ],
+  "apifyEnabled": true,
+  "apifyMaxItems": 50
 }

@@ -22,6 +22,10 @@ export async function POST(req: Request) {
     if (!body.keywords || !body.cities || !body.sources) {
       return NextResponse.json({ error: 'Invalid configuration payload: keywords, cities, and sources are required' }, { status: 400 });
     }
+    
+    // Ensure apify configs exist, fallback if missing
+    if (body.apifyEnabled === undefined) body.apifyEnabled = true;
+    if (!body.apifyMaxItems) body.apifyMaxItems = 50;
 
     fs.writeFileSync(configPath, JSON.stringify(body, null, 2), 'utf8');
     return NextResponse.json({ success: true, config: body });

@@ -199,6 +199,11 @@ export async function scrapeWorkBC() {
 }
 
 export async function triggerApifyScrapers() {
+  if (configData.apifyEnabled === false) {
+    console.log("Apify integration is globally disabled in settings. Skipping.");
+    return { success: true, message: "Apify disabled" };
+  }
+  
   const apifyToken = process.env.APIFY_API_TOKEN;
   if (!apifyToken) {
     console.warn("APIFY_API_TOKEN is not set. Skipping Apify scrapers.");
@@ -215,7 +220,9 @@ export async function triggerApifyScrapers() {
   const config = {
     keywords: configData.keywords || [],
     cities: configData.cities || [],
-    sources: configData.sources || []
+    sources: configData.sources || [],
+    apifyEnabled: configData.apifyEnabled !== false,
+    apifyMaxItems: configData.apifyMaxItems || 50
   };
 
   const ACTIVE_SOURCES = config.sources.filter(s => s.active).map(s => s.id);
@@ -236,7 +243,7 @@ export async function triggerApifyScrapers() {
       await client.actor('borderline/indeed-scraper').start({
         position: config.keywords.map(k => `${k} full time`).join(', '),
         location: config.cities.join(' BC, '),
-        maxItems: 50,
+        maxItems: config.apifyMaxItems || 50,
         sort: "date",
         saveOnlyUniqueItems: true
       }, {
@@ -261,7 +268,7 @@ export async function triggerApifyScrapers() {
         locations: config.cities.map(c => `${c}, British Columbia, Canada`),
         postedLimit: "past-week",
         employmentType: ["Full-time"],
-        maxItemsPerQuery: 50
+        maxItemsPerQuery: config.apifyMaxItems || 50
       }, {
         webhooks: [{
           eventTypes: ["ACTOR.RUN.SUCCEEDED"],

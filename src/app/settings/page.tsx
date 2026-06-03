@@ -24,6 +24,10 @@ export default function ScraperSettingsPage() {
   const [newSourceName, setNewSourceName] = useState("")
   const [newSourceUrl, setNewSourceUrl] = useState("")
   
+  // Apify settings state
+  const [apifyEnabled, setApifyEnabled] = useState(true)
+  const [apifyMaxItems, setApifyMaxItems] = useState(50)
+  
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState("")
   
@@ -42,6 +46,8 @@ export default function ScraperSettingsPage() {
           setKeywords(data.keywords || [])
           setCities(data.cities || [])
           setSources(data.sources || [])
+          if (data.apifyEnabled !== undefined) setApifyEnabled(data.apifyEnabled)
+          if (data.apifyMaxItems !== undefined) setApifyMaxItems(data.apifyMaxItems)
         }
       } catch (e) {
         console.error('Failed to load scraper config:', e)
@@ -51,7 +57,7 @@ export default function ScraperSettingsPage() {
   }, [])
 
   // Auto-save helper
-  const saveConfig = async (updatedKeywords: string[], updatedCities: string[], updatedSources: Source[]) => {
+  const saveConfig = async (updatedKeywords: string[], updatedCities: string[], updatedSources: Source[], enabled = apifyEnabled, maxItems = apifyMaxItems) => {
     setSaving(true)
     setSaveStatus("Saving changes...")
     try {
@@ -61,7 +67,9 @@ export default function ScraperSettingsPage() {
         body: JSON.stringify({
           keywords: updatedKeywords,
           cities: updatedCities,
-          sources: updatedSources
+          sources: updatedSources,
+          apifyEnabled: enabled,
+          apifyMaxItems: maxItems
         })
       })
       const data = await res.json()
@@ -482,6 +490,60 @@ export default function ScraperSettingsPage() {
                         <Plus className="w-3.5 h-3.5" /> Save Source
                       </button>
                     </form>
+                  </div>
+
+                </CardContent>
+              </Card>
+
+              {/* Apify Settings Card */}
+              <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg">Apify Settings</CardTitle>
+                  <CardDescription className="text-slate-400">Control your Apify usage and limits.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  
+                  {/* Master Toggle */}
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-950/60 transition-colors">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-sm text-slate-200">Enable Apify Extractors</span>
+                      <span className="text-xs text-slate-500">Toggle all Apify runs to save credits.</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={apifyEnabled} 
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setApifyEnabled(val);
+                          saveConfig(keywords, cities, sources, val, apifyMaxItems);
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500 peer-checked:after:bg-white peer-checked:after:border-indigo-500" />
+                    </label>
+                  </div>
+
+                  {/* Limit Control */}
+                  <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/40">
+                    <label className="flex flex-col gap-1.5">
+                      <span className="font-semibold text-sm text-slate-200">Max Items Per Run</span>
+                      <span className="text-xs text-slate-500 mb-1">Set the hard limit for Apify extractions.</span>
+                      <select 
+                        value={apifyMaxItems}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setApifyMaxItems(val);
+                          saveConfig(keywords, cities, sources, apifyEnabled, val);
+                        }}
+                        className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5"
+                      >
+                        <option value={10}>10 Items (Fast & Cheap)</option>
+                        <option value={50}>50 Items (Recommended)</option>
+                        <option value={100}>100 Items (Thorough)</option>
+                        <option value={500}>500 Items (Deep Scan)</option>
+                      </select>
+                    </label>
                   </div>
 
                 </CardContent>
