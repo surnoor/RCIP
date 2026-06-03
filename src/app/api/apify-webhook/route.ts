@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       } else if (source === 'google_dorks') {
         // apify/google-search-scraper format
         // Each item represents a search page with an array of organicResults
-        const results = item.organicResults || [];
+        const results = (item.organicResults as any[]) || [];
         for (const res of results) {
           const dorkJob = {
             title: res.title || 'Discovered Local Career Page',
