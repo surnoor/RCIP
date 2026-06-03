@@ -1,6 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { ApifyClient } from 'apify-client';
-import configData from '../../scraper_config.json';
+import _configData from '../../scraper_config.json';
+interface ScraperConfig {
+  keywords: string[];
+  cities: string[];
+  sources: { id: string; name: string; url: string; active: boolean }[];
+  apifyEnabled?: boolean;
+  apifyMaxItems?: number;
+}
+const configData = _configData as ScraperConfig;
 
 // This file runs natively in Node.js server environments
 
@@ -221,7 +229,7 @@ export async function triggerApifyScrapers() {
     keywords: configData.keywords || [],
     cities: configData.cities || [],
     sources: configData.sources || [],
-    apifyEnabled: configData.apifyEnabled !== false,
+    apifyEnabled: Boolean(configData.apifyEnabled) !== false,
     apifyMaxItems: configData.apifyMaxItems || 50
   };
 
