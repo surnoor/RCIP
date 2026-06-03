@@ -131,10 +131,17 @@ export async function scrapeWorkBC() {
     return null;
   }
 
-  for (const job of matchingJobs) {
-    console.log(`\nFetching details for: ${job.Title} at ${job.EmployerName} (${job.City})...`);
-    const details = await fetchJobDetail(job.JobId);
-    
+  // Fetch all job details in parallel to save time (prevents Vercel timeout)
+  console.log(`\nFetching details for ${matchingJobs.length} jobs in parallel...`);
+  
+  const detailedJobs = await Promise.all(
+    matchingJobs.map(async (job) => {
+      const details = await fetchJobDetail(job.JobId);
+      return { job, details };
+    })
+  );
+
+  for (const { job, details } of detailedJobs) {
     if (!details) {
       console.log(`Could not retrieve details for job ${job.JobId}. Skipping.`);
       continue;
@@ -190,7 +197,7 @@ export async function scrapeWorkBC() {
     };
 
     console.log(`Upserting job: ${jobRecord.title} at ${jobRecord.company}...`);
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('jobs')
       .upsert(jobRecord, { onConflict: 'url' })
       .select();

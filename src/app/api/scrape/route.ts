@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { scrapeAll } from '@/lib/scraper';
 
+export const maxDuration = 60;
+
 export async function POST(): Promise<Response> {
   console.log("API POST /api/scrape: Starting master scraper...");
   
