@@ -284,6 +284,41 @@ export async function triggerApifyScrapers() {
     }
   }
 
+  // 3. Google Dorks Scraper (apify/google-search-scraper)
+  if (ACTIVE_SOURCES.includes('google_dorks') && config.keywords.length > 0) {
+    console.log("Triggering Apify Google Search Scraper for local careers...");
+    try {
+      // Build clever queries: site:*.ca/careers OR site:*.com/jobs "administrative" "North Bay"
+      const dorkQueries = [];
+      const siteOperators = "site:*.ca/careers OR site:*.com/jobs OR site:*.ca/opportunities OR site:*.com/opportunities OR inurl:careers OR inurl:jobs";
+      
+      for (const keyword of config.keywords) {
+        for (const city of config.cities) {
+          dorkQueries.push({
+            searchQuery: `${siteOperators} "${keyword}" "${city}"`
+          });
+        }
+      }
+
+      await client.actor('apify/google-search-scraper').start({
+        queries: dorkQueries.map(q => q.searchQuery).join('\n'),
+        maxPagesPerQuery: 1,
+        resultsPerPage: 10,
+        countryCode: "ca"
+      }, {
+        webhooks: [{
+          eventTypes: ["ACTOR.RUN.SUCCEEDED"],
+          requestUrl: webhookUrl,
+          payloadTemplate: `{"datasetId": "{{resource.defaultDatasetId}}", "source": "google_dorks"}`
+        }]
+      });
+      triggered++;
+    } catch (e: any) {
+      console.error("Failed to trigger Google Dorks scraper:", e);
+      errors.push(`Google Dorks: ${e.message || 'Unknown error'} ${e.data?.approvalUrl ? `(Approve here: ${e.data.approvalUrl})` : ''}`);
+    }
+  }
+
   if (triggered > 0) {
     return { success: true, message: `Started ${triggered} Apify runs. Webhook: ${webhookUrl}` };
   } else {

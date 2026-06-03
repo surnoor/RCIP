@@ -81,6 +81,12 @@
       "name": "LinkedIn Canada",
       "url": "https://ca.linkedin.com",
       "active": true
+    },
+    {
+      "id": "google_dorks",
+      "name": "Google Dorks (Local Careers)",
+      "url": "https://google.com",
+      "active": true
     }
   ],
   "apifyEnabled": true,

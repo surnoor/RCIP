@@ -5,6 +5,7 @@ import { Briefcase, Settings, FileText } from "lucide-react"
 import Link from 'next/link'
 import BulkApplyButton from '@/components/BulkApplyButton'
 import WebFormActionButtons from '@/components/WebFormActionButtons'
+import ClearJobsButton from '@/components/ClearJobsButton'
 
 // Set this page to dynamically render so it fetches fresh data on load
 export const dynamic = 'force-dynamic'

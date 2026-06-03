@@ -53,6 +53,28 @@ export async function POST(req: Request) {
           url: item.url,
           status: 'new'
         };
+      } else if (source === 'google_dorks') {
+        // apify/google-search-scraper format
+        // Each item represents a search page with an array of organicResults
+        const results = item.organicResults || [];
+        for (const res of results) {
+          const dorkJob = {
+            title: res.title || 'Discovered Local Career Page',
+            company: 'Local Business',
+            location: 'Various RCIP Regions',
+            description: res.description || "No description available.",
+            url: res.url,
+            status: 'web_form' // these require manual review on their website
+          };
+          if (dorkJob.url) {
+            const { error } = await supabase
+              .from('jobs')
+              .upsert(dorkJob, { onConflict: 'url' });
+            
+            if (!error) upsertedCount++;
+          }
+        }
+        continue; // skip the generic upsert below
       } else {
         // Generic fallback if another scraper is used
         jobRecord = {
