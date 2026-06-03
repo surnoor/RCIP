@@ -228,11 +228,11 @@ export async function triggerApifyScrapers() {
 
   let triggered = 0;
 
-  // 1. Indeed Scraper (misceres/indeed-scraper)
+  // 1. Indeed Scraper (borderline/indeed-scraper)
   if (ACTIVE_SOURCES.includes('indeed') && searchQueries.length > 0) {
     console.log("Triggering Apify Indeed Scraper...");
     try {
-      await client.actor('misceres/indeed-scraper').start({
+      await client.actor('borderline/indeed-scraper').start({
         position: config.keywords.join(', '),
         location: config.cities.join(' BC, '),
         maxItems: 50,
