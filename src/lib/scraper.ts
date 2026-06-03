@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import fs from 'fs';
+import configData from '../../scraper_config.json';
 
 // This file runs natively in Node.js server environments
 
@@ -16,18 +17,12 @@ export async function scrapeWorkBC() {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Load configuration dynamically from scraper_config.json
-  const configPath = path.resolve(process.cwd(), 'scraper_config.json');
-  let config = { keywords: [] as string[], cities: [] as string[], sources: [] as any[] };
-  try {
-    if (fs.existsSync(configPath)) {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    } else {
-      console.warn("scraper_config.json not found. Using empty configuration.");
-    }
-  } catch (err) {
-    console.error("Error reading scraper_config.json", err);
-  }
+  // Cast or default the config
+  const config = {
+    keywords: configData.keywords || [],
+    cities: configData.cities || [],
+    sources: configData.sources || []
+  };
 
   const TARGET_CITIES = new Set(config.cities.map(c => c.trim().toLowerCase()));
   const KEYWORDS = config.keywords;
