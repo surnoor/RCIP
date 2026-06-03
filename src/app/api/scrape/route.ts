@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { scrapeWorkBC } from '@/lib/scraper';
+import { scrapeAll } from '@/lib/scraper';
 
 export async function POST(): Promise<Response> {
-  console.log("API POST /api/scrape: Starting native scraper...");
+  console.log("API POST /api/scrape: Starting master scraper...");
   
   try {
-    const result = await scrapeWorkBC();
-    console.log("API POST /api/scrape: Scraper completed successfully.", result);
+    const result = await scrapeAll();
+    console.log("API POST /api/scrape: Scraper processes completed.", result);
     return NextResponse.json({
       success: true,
       stdout: result?.message || "",

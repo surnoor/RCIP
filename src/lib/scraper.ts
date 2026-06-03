@@ -1,9 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
-import path from 'path';
-import fs from 'fs';
+import { ApifyClient } from 'apify-client';
 import configData from '../../scraper_config.json';
 
 // This file runs natively in Node.js server environments
+
+export async function scrapeAll() {
+  console.log("Starting master scraper process...");
+  
+  // 1. Run WorkBC synchronously
+  let workbcResult = { success: true, message: "WorkBC skipped" };
+  try {
+    workbcResult = await scrapeWorkBC();
+  } catch (e: any) {
+    console.error("WorkBC scrape failed:", e);
+    workbcResult = { success: false, message: e.message };
+  }
+
+  // 2. Trigger Apify scrapers asynchronously (Indeed/LinkedIn)
+  let apifyResult = { success: true, message: "Apify skipped" };
+  try {
+    apifyResult = await triggerApifyScrapers();
+  } catch (e: any) {
+    console.error("Apify trigger failed:", e);
+    apifyResult = { success: false, message: e.message };
+  }
+
+  return {
+    success: true,
+    message: `WorkBC: ${workbcResult.message}. Apify: ${apifyResult.message}`
+  };
+}
 
 export async function scrapeWorkBC() {
   console.log("Starting native WorkBC Scraper...");
@@ -30,7 +56,7 @@ export async function scrapeWorkBC() {
 
   if (!ACTIVE_SOURCES.includes('workbc')) {
     console.log("WorkBC is disabled in the active scraper sources configuration. Skipping WorkBC scrape.");
-    return { success: true, message: "WorkBC skipped" };
+    return { success: true, message: "WorkBC disabled" };
   }
   
   const searchUrl = 'https://workbc-jb.a55eb5-prod.stratus.cloud.gov.bc.ca/api/Search/JobSearch';
@@ -168,6 +194,88 @@ export async function scrapeWorkBC() {
     }
   }
 
-  console.log("\nScraping and DB populating completed successfully!");
-  return { success: true, message: "Scraping completed successfully" };
+  console.log("\nWorkBC Scraping and DB populating completed successfully!");
+  return { success: true, message: "WorkBC completed" };
+}
+
+export async function triggerApifyScrapers() {
+  const apifyToken = process.env.APIFY_API_TOKEN;
+  if (!apifyToken) {
+    console.warn("APIFY_API_TOKEN is not set. Skipping Apify scrapers.");
+    return { success: false, message: "Missing Apify token" };
+  }
+
+  // Construct Webhook URL
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  const webhookUrl = `${baseUrl}/api/apify-webhook`;
+
+  const client = new ApifyClient({ token: apifyToken });
+
+  const config = {
+    keywords: configData.keywords || [],
+    cities: configData.cities || [],
+    sources: configData.sources || []
+  };
+
+  const ACTIVE_SOURCES = config.sources.filter(s => s.active).map(s => s.id);
+  const searchQueries = [];
+  for (const keyword of config.keywords) {
+    for (const city of config.cities) {
+      searchQueries.push(`${keyword} in ${city}, BC`);
+    }
+  }
+
+  let triggered = 0;
+
+  // 1. Indeed Scraper (hynek/indeed-scraper)
+  if (ACTIVE_SOURCES.includes('indeed') && searchQueries.length > 0) {
+    console.log("Triggering Apify Indeed Scraper...");
+    try {
+      await client.actor('hynek/indeed-scraper').start({
+        position: config.keywords.join(', '),
+        location: config.cities.join(' BC, '),
+        maxItems: 50,
+        sort: "date",
+        saveOnlyUniqueItems: true
+      }, {
+        webhooks: [{
+          eventTypes: ["ACTOR.RUN.SUCCEEDED"],
+          requestUrl: webhookUrl,
+          payloadTemplate: `{"datasetId": "{{resource.defaultDatasetId}}", "source": "indeed"}`
+        }]
+      });
+      triggered++;
+    } catch (e) {
+      console.error("Failed to trigger Indeed scraper:", e);
+    }
+  }
+
+  // 2. LinkedIn Scraper (bebity/linkedin-jobs-scraper)
+  if (ACTIVE_SOURCES.includes('linkedin') && searchQueries.length > 0) {
+    console.log("Triggering Apify LinkedIn Scraper...");
+    try {
+      // Bebity linkedin scraper takes an array of search queries
+      await client.actor('bebity/linkedin-jobs-scraper').start({
+        searchUrls: searchQueries.map(q => ({ url: `https://ca.linkedin.com/jobs/search?keywords=${encodeURIComponent(q)}` })),
+        limit: 50,
+        publishedAt: "past-week"
+      }, {
+        webhooks: [{
+          eventTypes: ["ACTOR.RUN.SUCCEEDED"],
+          requestUrl: webhookUrl,
+          payloadTemplate: `{"datasetId": "{{resource.defaultDatasetId}}", "source": "linkedin"}`
+        }]
+      });
+      triggered++;
+    } catch (e) {
+      console.error("Failed to trigger LinkedIn scraper:", e);
+    }
+  }
+
+  if (triggered > 0) {
+    return { success: true, message: `Started ${triggered} Apify runs. Webhook: ${webhookUrl}` };
+  } else {
+    return { success: true, message: "No active Apify sources to trigger." };
+  }
 }
