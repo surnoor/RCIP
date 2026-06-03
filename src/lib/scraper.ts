@@ -268,7 +268,7 @@ export async function triggerApifyScrapers() {
         queries: config.keywords,
         locations: config.cities.map(c => `${c}, British Columbia, Canada`),
         postedLimit: "past-week",
-        employmentType: ["Full-time"],
+        employmentType: ["full-time"],
         maxItemsPerQuery: config.apifyMaxItems || 50
       }, {
         webhooks: [{
