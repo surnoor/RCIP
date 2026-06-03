@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const prompt = `
+    const resumePrompt = `
 You are an expert executive recruiter and resume writer.
 I will provide you with a Job Description and a Base Resume. 
 Your task is to tailor the Base Resume to strictly match the Job Description.
@@ -25,15 +25,15 @@ ${jobDescription}
 Base Resume:
 ${baseResume}
 
-Output the tailored resume in clean Markdown format. Do not use any markdown codeblocks like \`\`\`markdown, just output the raw markdown text.
+CRITICAL: Output the tailored resume in strictly plain text formatting. DO NOT use any markdown tags, asterisks (*), hash symbols (#), bold tags, or any AI-like formatting. Format lists with simple dashes (-) or plain numbers (1. 2.). The output must look like a clean, professional plain text document.
 `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
+      contents: resumePrompt,
     });
 
-    const tailoredResume = response.text;
+    const tailoredResume = response.text || '';
 
     let tailoredCoverLetter = '';
     if (baseCoverLetter) {
@@ -48,7 +48,7 @@ ${jobDescription}
 Base Cover Letter:
 ${baseCoverLetter}
 
-Output the tailored cover letter in clean Markdown format. Do not use any markdown codeblocks like \`\`\`markdown, just output the raw markdown text.
+CRITICAL: Output the tailored cover letter in strictly plain text formatting suitable for an email attachment. DO NOT use any markdown tags, asterisks (*), hash symbols (#), bold tags, or any AI-like formatting. The output must look like a clean, professional plain text business letter.
 `;
       const clResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -57,7 +57,24 @@ Output the tailored cover letter in clean Markdown format. Do not use any markdo
       tailoredCoverLetter = clResponse.text || '';
     }
 
-    return NextResponse.json({ tailoredResume, tailoredCoverLetter });
+    const emailBodyPrompt = `
+You are an expert professional applicant.
+Based on the following Job Description, write a short, professional email body (3-5 sentences) introducing myself and stating that my resume and cover letter are attached.
+Do not include subject line or placeholder blocks like [Your Name], just write the pure body.
+
+Job Description:
+${jobDescription}
+
+CRITICAL: Output strictly plain text. NO markdown, NO asterisks. Keep it concise.
+`;
+
+    const emailBodyResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: emailBodyPrompt,
+    });
+    const emailBody = emailBodyResponse.text || '';
+
+    return NextResponse.json({ tailoredResume, tailoredCoverLetter, emailBody });
   } catch (error) {
     console.error('AI Generation Error:', error);
     return NextResponse.json({ error: 'Failed to generate documents' }, { status: 500 });

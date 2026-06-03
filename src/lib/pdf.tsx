@@ -28,6 +28,12 @@ const ResumeDocument = ({ content }: { content: string }) => (
   </Document>
 );
 
-export async function generatePdfStream(markdownContent: string) {
-  return await renderToStream(<ResumeDocument content={markdownContent} />);
+export async function generatePdfBuffer(markdownContent: string): Promise<Buffer> {
+  const stream = await renderToStream(<ResumeDocument content={markdownContent} />);
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', chunk => chunks.push(Buffer.from(chunk)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
 }

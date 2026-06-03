@@ -1,14 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
+import { generatePdfBuffer } from '@/lib/pdf';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
-const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
@@ -17,6 +17,18 @@ export async function POST(req: Request) {
     if (!jobIds || !Array.isArray(jobIds) || jobIds.length === 0) {
       return NextResponse.json({ error: 'Missing or invalid jobIds array' }, { status: 400 });
     }
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+      return NextResponse.json({ error: 'Gmail credentials not configured in environment.' }, { status: 500 });
+    }
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_APP_PASSWORD
+        }
+    });
 
     // 1. Fetch the jobs from Supabase
     const { data: jobs, error: jobsError } = await supabase
@@ -52,11 +64,11 @@ export async function POST(req: Request) {
         console.log(`Processing job ${job.id} (${job.title})...`);
 
         // Extract email address from description
-        const emailMatch = job.description.match(/- \*\*Email:\*\* ([\w.-]+@[\w.-]+\.\w+)/);
+        const emailMatch = job.description.match(/- \*\*Email:\*\* ([\w.-]+@[\w.-]+\.\w+)/) || job.description.match(/[\w.-]+@[\w.-]+\.\w+/);
         if (!emailMatch) {
           throw new Error('No apply email found in description');
         }
-        const applyEmail = emailMatch[1];
+        const applyEmail = emailMatch[1] || emailMatch[0]; // Fallback to raw match if group 1 fails
 
         // Generate tailored Resume
         const resumePrompt = `
@@ -65,6 +77,7 @@ I will provide you with a Job Description and a Base Resume.
 Your task is to tailor the Base Resume to strictly match the Job Description.
 Focus on highlighting administrative skills.
 Reorder and rewrite bullet points to align with the employer's needs.
+Do not hallucinate skills or experience that are not in the Base Resume.
 
 Job Description:
 ${job.description}
@@ -72,13 +85,13 @@ ${job.description}
 Base Resume:
 ${baseResume}
 
-Output the tailored resume in clean Markdown format. Do not use any markdown codeblocks like \`\`\`markdown, just output the raw markdown text.
+CRITICAL: Output the tailored resume in strictly plain text formatting. DO NOT use any markdown tags, asterisks (*), hash symbols (#), bold tags, or any AI-like formatting. Format lists with simple dashes (-) or plain numbers (1. 2.).
 `;
         const resumeRes = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: resumePrompt,
         });
-        const tailoredResume = resumeRes.text;
+        const tailoredResume = resumeRes.text || '';
 
         // Generate tailored Cover Letter
         const clPrompt = `
@@ -92,38 +105,56 @@ ${job.description}
 Base Cover Letter:
 ${baseCoverLetter}
 
-Output the tailored cover letter in clean plain text (no markdown formatting, just plain text ready for an email body).
+CRITICAL: Output the tailored cover letter in strictly plain text formatting suitable for an email attachment. DO NOT use any markdown tags, asterisks (*), hash symbols (#), bold tags, or any AI-like formatting.
 `;
         const clRes = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: clPrompt,
         });
-        const tailoredCoverLetter = clRes.text;
+        const tailoredCoverLetter = clRes.text || '';
 
-        // Send Email via Resend
-        if (!process.env.RESEND_API_KEY) {
-            console.warn("RESEND_API_KEY is missing. Skipping actual email send.");
-        } else {
-            // NOTE: In testing/development without a verified domain, Resend only allows sending to the verified email.
-            // Using onboarding@resend.dev or your own email if unverified.
-            const targetEmail = process.env.NODE_ENV === 'development' ? 'onboarding@resend.dev' : applyEmail;
-            
-            const emailData = await resend.emails.send({
-              from: 'RCIP Tracker <onboarding@resend.dev>', // Must use verified domain in prod
-              to: [targetEmail],
-              subject: `Application for ${job.title} - ${job.company}`,
-              text: tailoredCoverLetter || 'Please find my resume attached.',
-              attachments: [
-                {
-                  filename: 'Resume.txt',
-                  content: Buffer.from(tailoredResume || '', 'utf-8'),
-                }
-              ]
-            });
+        const emailBodyPrompt = `
+You are an expert professional applicant.
+Based on the following Job Description, write a short, professional email body (3-5 sentences) introducing myself and stating that my resume and cover letter are attached.
+Do not include subject line or placeholder blocks like [Your Name], just write the pure body.
 
-            if (emailData.error) {
-                throw new Error(`Resend Error: ${emailData.error.message}`);
+Job Description:
+${job.description}
+
+CRITICAL: Output strictly plain text. NO markdown, NO asterisks. Keep it concise.
+`;
+        const emailBodyRes = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: emailBodyPrompt,
+        });
+        const tailoredEmailBody = emailBodyRes.text || 'Please find my application attached.';
+
+        // Create PDFs
+        const resumeBuffer = await generatePdfBuffer(tailoredResume);
+        const coverLetterBuffer = await generatePdfBuffer(tailoredCoverLetter);
+
+        const attachments = [
+            {
+              filename: 'Resume.pdf',
+              content: resumeBuffer,
+            },
+            {
+              filename: 'CoverLetter.pdf',
+              content: coverLetterBuffer,
             }
+        ];
+
+        // Send Email via Nodemailer
+        const info = await transporter.sendMail({
+            from: `"Job Tracker" <${process.env.EMAIL_USER}>`,
+            to: applyEmail,
+            subject: `Application for ${job.title} - ${job.company}`,
+            text: tailoredEmailBody,
+            attachments: attachments,
+        });
+
+        if (!info.messageId) {
+            throw new Error(`Nodemailer Error: Failed to get messageId`);
         }
 
         // Update Job Status

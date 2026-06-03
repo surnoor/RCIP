@@ -4,13 +4,31 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Sparkles, Send, FileText, Loader2, CheckCircle } from "lucide-react"
 import { supabase } from '@/lib/supabase'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
 
 export default function JobReviewClient({ job }: { job: any }) {
   const [resume, setResume] = useState("")
   const [coverLetter, setCoverLetter] = useState("")
+  const [emailBody, setEmailBody] = useState("")
+  
   const [loading, setLoading] = useState(false)
   const [dispatching, setDispatching] = useState(false)
   const [status, setStatus] = useState("")
+
+  // Dialog State
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [toEmail, setToEmail] = useState("")
+  const [subject, setSubject] = useState("")
 
   const handleGenerate = async () => {
     setLoading(true)
@@ -43,6 +61,7 @@ export default function JobReviewClient({ job }: { job: any }) {
       const data = await res.json()
       if (data.tailoredResume) setResume(data.tailoredResume)
       if (data.tailoredCoverLetter) setCoverLetter(data.tailoredCoverLetter)
+      if (data.emailBody) setEmailBody(data.emailBody)
       
       setStatus("Documents generated successfully!")
       
@@ -62,21 +81,31 @@ export default function JobReviewClient({ job }: { job: any }) {
     }
   }
 
-  const handleDispatch = async () => {
+  const openDispatchDialog = () => {
+    // Extract email from description
+    const emailMatch = job.description?.match(/- \*\*Email:\*\* ([\w.-]+@[\w.-]+\.\w+)/) || job.description?.match(/[\w.-]+@[\w.-]+\.\w+/);
+    const extractedEmail = emailMatch ? (emailMatch[1] || emailMatch[0]) : "";
+
+    setToEmail(extractedEmail);
+    setSubject(`Application for ${job.title} - ${job.company}`);
+    setIsDialogOpen(true);
+  }
+
+  const confirmDispatch = async () => {
+    setIsDialogOpen(false)
     setDispatching(true)
-    setStatus("Dispatching via Resend...")
+    setStatus("Dispatching via Gmail...")
     try {
-      // For testing, sending to onboarding@resend.dev. In production, we extract the email.
       const res = await fetch("/api/dispatch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          toEmail: "onboarding@resend.dev", // Using Resend testing email
-          subject: `Application for ${job.title} - ${job.company}`,
-          textBody: "Please find my application attached.",
-          applicantName: "Surnoor_Singh",
-          resumeBuffer: { data: Buffer.from(resume).toJSON().data }, // In real scenario, PDF stream goes here
-          coverLetterBuffer: coverLetter ? { data: Buffer.from(coverLetter).toJSON().data } : null
+          toEmail: toEmail,
+          subject: subject,
+          textBody: emailBody,
+          applicantName: "Surnoor_Singh", // Or fetch from user profile
+          resumeContent: resume,
+          coverLetterContent: coverLetter
         })
       })
       
@@ -84,7 +113,8 @@ export default function JobReviewClient({ job }: { job: any }) {
         setStatus("Application Sent Successfully!")
         await supabase.from('jobs').update({ status: 'applied' }).eq('id', job.id)
       } else {
-        setStatus("Error dispatching application.")
+        const errorData = await res.json()
+        setStatus(`Error: ${errorData.error || 'Failed to dispatch application.'}`)
       }
     } catch (e) {
       console.error(e)
@@ -107,7 +137,7 @@ export default function JobReviewClient({ job }: { job: any }) {
           Re-Generate Documents
         </button>
         <button 
-          onClick={handleDispatch}
+          onClick={openDispatchDialog}
           disabled={!resume || loading || dispatching}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
         >
@@ -116,6 +146,56 @@ export default function JobReviewClient({ job }: { job: any }) {
         </button>
         {status && <span className="text-sm text-slate-400 ml-4 animate-pulse">{status}</span>}
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle>Review Email Dispatch</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="toEmail" className="text-slate-300">To Email</Label>
+              <Input
+                id="toEmail"
+                value={toEmail}
+                onChange={(e) => setToEmail(e.target.value)}
+                className="bg-slate-950 border-slate-800 text-slate-200"
+                placeholder="employer@example.com"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="subject" className="text-slate-300">Subject</Label>
+              <Input
+                id="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="bg-slate-950 border-slate-800 text-slate-200"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="emailBody" className="text-slate-300">Email Body</Label>
+              <Textarea
+                id="emailBody"
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                className="bg-slate-950 border-slate-800 text-slate-200 min-h-[150px]"
+                placeholder="Write your email body here..."
+              />
+            </div>
+            <p className="text-xs text-slate-400">
+              * Resume.pdf and CoverLetter.pdf will be generated and attached automatically.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-slate-700 text-slate-300 hover:bg-slate-800">
+              Cancel
+            </Button>
+            <Button onClick={confirmDispatch} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+              Confirm & Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl">
@@ -126,7 +206,7 @@ export default function JobReviewClient({ job }: { job: any }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-lg min-h-[300px] max-h-[500px] overflow-y-auto font-mono text-sm text-slate-300">
+            <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-lg min-h-[300px] max-h-[500px] overflow-y-auto font-mono text-sm text-slate-300 whitespace-pre-wrap">
               {coverLetter || "Click 'Re-Generate Documents' to write this based on your Base Profile."}
             </div>
           </CardContent>
@@ -140,7 +220,7 @@ export default function JobReviewClient({ job }: { job: any }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-lg min-h-[300px] max-h-[500px] overflow-y-auto font-mono text-sm text-slate-300">
+            <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-lg min-h-[300px] max-h-[500px] overflow-y-auto font-mono text-sm text-slate-300 whitespace-pre-wrap">
               {resume || "Click 'Re-Generate Documents' to write this based on your Base Profile."}
             </div>
           </CardContent>
