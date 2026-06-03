@@ -1,0 +1,179 @@
+import { createClient } from '@supabase/supabase-js';
+import * as dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+
+// Load environment variables from .env.local
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Missing Supabase credentials. Make sure .env.local is configured.");
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Load configuration dynamically from scraper_config.json
+const configPath = path.resolve(__dirname, '../scraper_config.json');
+let config = { keywords: [] as string[], cities: [] as string[], sources: [] as any[] };
+try {
+  config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+} catch (err) {
+  console.error("Error reading scraper_config.json, using fallback", err);
+}
+
+const TARGET_CITIES = new Set(config.cities.map(c => c.trim().toLowerCase()));
+const KEYWORDS = config.keywords;
+const ACTIVE_SOURCES = config.sources.filter(s => s.active).map(s => s.id);
+
+
+async function fetchJobDetail(jobId: string): Promise<any> {
+  const url = `https://workbc-jb.a55eb5-prod.stratus.cloud.gov.bc.ca/api/Search/GetJobDetail?jobId=${jobId}&language=en&isToggle=false`;
+  try {
+    const res = await fetch(url);
+    const json: any = await res.json();
+    if (json && json.result && json.result.length > 0) {
+      return json.result[0];
+    }
+  } catch (e) {
+    console.error(`Error fetching details for job ID ${jobId}:`, e);
+  }
+  return null;
+}
+
+async function scrapeWorkBC() {
+  console.log("Starting real WorkBC Scraper...");
+  
+  if (!ACTIVE_SOURCES.includes('workbc')) {
+    console.log("WorkBC is disabled in the active scraper sources configuration. Skipping WorkBC scrape.");
+    return;
+  }
+  
+  const searchUrl = 'https://workbc-jb.a55eb5-prod.stratus.cloud.gov.bc.ca/api/Search/JobSearch';
+  const allJobsMap = new Map<string, any>();
+
+  for (const keyword of KEYWORDS) {
+    console.log(`Searching for keyword: "${keyword}"...`);
+    const payload = {
+      Page: 1,
+      PageSize: 100,
+      SalaryMin: "",
+      SalaryMax: "",
+      Keyword: keyword,
+      SearchInField: "all",
+      SearchIsPostingsInEnglish: true,
+      SearchJobSource: "0"
+    };
+
+    try {
+      const response = await fetch(searchUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json: any = await response.json();
+      
+      if (json && json.result) {
+        console.log(`Found ${json.result.length} jobs for keyword "${keyword}".`);
+        for (const job of json.result) {
+          allJobsMap.set(job.JobId, job);
+        }
+      }
+    } catch (e) {
+      console.error(`Error searching keyword "${keyword}":`, e);
+    }
+  }
+
+  const uniqueJobs = Array.from(allJobsMap.values());
+  console.log(`Total unique jobs found across all keywords: ${uniqueJobs.length}`);
+
+  const matchingJobs = uniqueJobs.filter(job => {
+    const city = (job.City || '').trim().toLowerCase();
+    return TARGET_CITIES.has(city);
+  });
+
+  console.log(`Filtered down to ${matchingJobs.length} jobs in RCIP target cities.`);
+
+  if (matchingJobs.length === 0) {
+    console.log("No matching jobs found in target RCIP regions.");
+    return;
+  }
+
+  for (const job of matchingJobs) {
+    console.log(`\nFetching details for: ${job.Title} at ${job.EmployerName} (${job.City})...`);
+    const details = await fetchJobDetail(job.JobId);
+    
+    if (!details) {
+      console.log(`Could not retrieve details for job ${job.JobId}. Skipping.`);
+      continue;
+    }
+
+    // Format a beautiful description
+    let description = "";
+    if (details.SalaryDescription) {
+      description += `### Salary & Hours\n- **Salary:** ${details.SalaryDescription}\n`;
+      if (details.WorkHours) {
+        description += `- **Hours:** ${details.WorkHours} hours per week\n`;
+      }
+      description += `\n`;
+    }
+    
+    if (details.NocGroup) {
+      description += `### Classification\n- **NOC Code:** ${details.Noc2021 || 'N/A'}\n- **NOC Group:** ${details.NocGroup}\n\n`;
+    }
+
+    if (details.SkillCategories && details.SkillCategories.length > 0) {
+      description += `### Job Requirements & Specifications\n\n`;
+      for (const cat of details.SkillCategories) {
+        if (cat.Skills && cat.Skills.length > 0) {
+          description += `**${cat.Category?.Name || 'Requirements'}**\n`;
+          for (const skill of cat.Skills) {
+            description += `- ${skill}\n`;
+          }
+          description += `\n`;
+        }
+      }
+    }
+
+    if (details.ApplyEmailAddress || details.ApplyWebsite) {
+      description += `### How to Apply\n`;
+      if (details.ApplyEmailAddress) {
+        description += `- **Email:** ${details.ApplyEmailAddress}\n`;
+      }
+      if (details.ApplyWebsite) {
+        description += `- **Website:** [Apply Online Here](${details.ApplyWebsite})\n`;
+      }
+      description += `\n`;
+    }
+
+    const jobUrl = `https://www.workbc.ca/jobs-careers/find-jobs/jobs.aspx#/job-details/${job.JobId}`;
+
+    const jobRecord = {
+      title: details.Title || job.Title,
+      company: details.EmployerName || job.EmployerName,
+      location: details.City || job.City,
+      description: description,
+      url: jobUrl,
+      status: details.ApplyEmailAddress ? 'new' : 'web_form'
+    };
+
+    console.log(`Upserting job: ${jobRecord.title} at ${jobRecord.company}...`);
+    const { data, error } = await supabase
+      .from('jobs')
+      .upsert(jobRecord, { onConflict: 'url' })
+      .select();
+
+    if (error) {
+      console.error(`Error inserting ${jobRecord.title}:`, error);
+    } else {
+      console.log(`Successfully upserted: ${jobRecord.title} in ${jobRecord.location}`);
+    }
+  }
+
+  console.log("\nScraping and DB populating completed successfully!");
+}
+
+scrapeWorkBC().catch(console.error);
