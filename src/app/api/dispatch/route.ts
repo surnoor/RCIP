@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     const info = await transporter.sendMail({
-      from: `"Job Tracker" <${process.env.EMAIL_USER}>`,
+      from: `"Surnoor Singh" <${process.env.EMAIL_USER}>`,
       to: toEmail,
       subject: subject,
       text: textBody,

@@ -146,7 +146,7 @@ CRITICAL: Output strictly plain text. NO markdown, NO asterisks. Keep it concise
 
         // Send Email via Nodemailer
         const info = await transporter.sendMail({
-            from: `"Job Tracker" <${process.env.EMAIL_USER}>`,
+            from: `"Surnoor Singh" <${process.env.EMAIL_USER}>`,
             to: applyEmail,
             subject: `Application for ${job.title} - ${job.company}`,
             text: tailoredEmailBody,
