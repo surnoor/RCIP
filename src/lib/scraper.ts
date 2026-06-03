@@ -275,7 +275,7 @@ export async function triggerApifyScrapers() {
       await client.actor('harvestapi/linkedin-job-search').start({
         queries: config.keywords,
         locations: config.cities.map(c => `${c}, British Columbia, Canada`),
-        postedLimit: "past-week",
+        postedLimit: "week",
         employmentType: ["full-time"],
         maxItemsPerQuery: config.apifyMaxItems || 50
       }, {
